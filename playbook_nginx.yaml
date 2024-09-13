@@ -1,0 +1,86 @@
+---
+- hosts: all
+  become: true
+  vars:
+    dest_path: /var/pic/QaY6-FFxEYyw.jpeg
+
+  tasks:
+    - name: Create directory
+      file:
+        path: /var/pic
+        mode: '0777'
+        owner: buchynski
+        group: buchynski
+        state: directory
+
+    - name: Copy files
+      copy:
+        src: /home/ray/tms-git/tms-git/examples/Scorewarrior/static/QaY6-FFxEYyw.jpeg
+        dest: "{{ dest_path }}"
+        owner: buchynski
+        group: buchynski
+        mode: '0777'
+
+    - name: Add user to group
+      user:
+        name: buchynski
+        groups: docker
+        append: true
+
+    - name: Install aptitude
+      apt:
+        name: aptitude
+        state: latest
+        update_cache: true
+
+    - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        state: latest
+        update_cache: true
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: true
+
+    - name: Copy files
+      copy:
+        src: /home/ray/tms-git/tms-git/examples/Scorewarrior/app/
+        dest: /home/buchynski/
+
+    - name: Build Docker image
+      community.docker.docker_image:
+        name: nginx-image
+        build:
+          path: /home/buchynski/
+        source: build
+
+    - name: Run Nginx container
+      community.docker.docker_container:
+        name: nginx-container
+        image: nginx-image
+        state: started
+        restart_policy: always
+        ports:
+          - "80:80"
+        volumes:
+          - "/var/pic:/app/static"
